@@ -1,7 +1,22 @@
 import mongoose from "mongoose";
-import { DB_NAME } from "./constants";
+import { DB_NAME } from "./constants.js";
+import connectDB from "./db/index.db.js";
 
 
+
+
+
+// require('dotenv').config({path: './env'});
+import dotenv from "dotenv";
+dotenv.config({path: './env'})
+// this is recently introduced in dotenv and only available using an experimental feature
+// use -r dotenv/config --experimental-json-modules in the 'dev' script
+// once this feature is not experminetal, remove the --exper.. so on
+
+
+
+
+connectDB()
 
 
 
