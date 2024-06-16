@@ -35,6 +35,7 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 }
 
+export {uploadOnCloudinary}
 
 // import {v2 as cloudinary} from 'cloudinary';
 
