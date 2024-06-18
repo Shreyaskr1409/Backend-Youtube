@@ -46,12 +46,20 @@ const registerUser = asyncHandler( async(req, res) => {
     }
 
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path; we are commenting this because...
+    // ...when we do not send coverImage with the request, we are getting an error due to the question marks
+    // ...still unclear why
+    // ...it is fixed later
     // we get files access from multer using req.files
     // avatar field consists of many options like size or format
     // first property of avatar's path can be accessed using avatar[0].path
 
     // this path can now be uploaded as a parameter in uploadOnCloudinary(localFilePath parameter will be avatarLocalPath)
+
+    let coverImageLocalPath;
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
 
     if(!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required: avatarLocalPath not found")

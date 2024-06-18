@@ -19,8 +19,9 @@ dotenv.config({path: './env'})
 
 connectDB()
 .then(() => {
+    const port_bug = process.env.PORT || 8000;
     app.listen(process.env.PORT || 8000, () => {
-        console.log("The server is listening at port");
+        console.log("The server is listening at port", port_bug);
     })
 })
 .catch((err) => {
