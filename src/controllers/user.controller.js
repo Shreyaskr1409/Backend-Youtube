@@ -4,6 +4,27 @@ import {User} from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.utils.js";
 import {ApiResponse} from "../utils/ApiResponse.utils.js"
 
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken;
+        user.accessToken = accessToken;
+
+        // user.save() is used for saving data.
+        // while saving, the save() function takes all fields of a model as parameters
+        // here we have only the values of accessToken and refreshToken
+
+        await user.save({ validateBeforeSve: false })
+        return {accessToken, refreshToken}
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating tokens")
+    }
+}
+
 const registerUser = asyncHandler( async(req, res) => {
     // res.status(200).json({
     //     message: "OK"
@@ -37,6 +58,11 @@ const registerUser = asyncHandler( async(req, res) => {
         throw ApiError(400, "All fields are required")
     }
 
+    
+    // now we will check if the user exists
+    // User.findOne({email}) or User.findOne({username}) can be used if we want...
+    // ...to find using just email or username
+    // ...but to find using either one of them:
     const existedUser = await User.findOne({
         $or: [{username}, {email}]
     })
@@ -101,4 +127,100 @@ const registerUser = asyncHandler( async(req, res) => {
 
 } )
 
-export {registerUser}
+const loginUser = asyncHandler( async(req,res) => {
+    // get data from req body
+    // username or email
+    // find the user
+    // password check
+    // access & refresh token generated and sent to the user
+    // send cookies
+
+    const {email, username, password} = req.body;
+
+    if(!(email || username)) {
+        throw new ApiError(400, "username or email required")
+    }
+
+    // now we will check if the user exists
+    // User.findOne({email}) or User.findOne({username}) can be used if we want...
+    // ...to find using just email or username
+    // ...but to find using either one of them:
+
+    const user = await User.findOne({
+        $or: [{username}, {email}]
+    })
+
+    if(!user) {
+        throw new ApiError(404, "User does not exist")
+    }
+
+    // dont use User to get data. it is an Mongoose object.. user is the one we made
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    if (!isPasswordValid) {
+        throw new ApiError(404, "Invalid user credentials")
+    }
+
+    const { accessToken, refreshToken } = generateAccessAndRefreshTokens(user._id)
+
+    // NOW!!! the user initially did not have a refreshToken or AccessToken when he first logged in
+    // we can either: 1. send query to database to update the user's fields (easier and method)
+    // 2. we can update the present object and send res respectively with the tokens
+    // NOW it is up to you to decide whether sending query to database is will be expensive or not...
+    // we say expensive because you are actually paying for sending data for each kb
+
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+    // usually cookies are modifiable by frontend, but providing httpOnly and secure as true,
+    // they can only be modified by server
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken
+            },
+            // we are sending access and refresh tokens in user because what if client is using an app...
+            // ...not a browser. Then the cookies will not be saved, these values from user will be saved
+        )
+    )
+
+})
+
+const logoutUser = asyncHandler(async(req, res) => {
+    // we will clear out refreshToken from user in the database
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged out successfully"))
+})
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser
+}
