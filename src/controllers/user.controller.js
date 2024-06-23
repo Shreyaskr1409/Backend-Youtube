@@ -3,6 +3,7 @@ import {ApiError} from "../utils/ApiError.utils.js";
 import {User} from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.utils.js";
 import {ApiResponse} from "../utils/ApiResponse.utils.js"
+import jwt from "jsonwebtoken"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -160,7 +161,7 @@ const loginUser = asyncHandler( async(req,res) => {
         throw new ApiError(401, "Invalid user credentials")
     }
 
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
+    const { accessToken, refreshToken } = await   generateAccessAndRefreshTokens(user._id)
 
     // NOW!!! the user initially did not have a refreshToken or AccessToken when he first logged in
     // we can either: 1. send query to database to update the user's fields (easier and method)
@@ -220,8 +221,60 @@ const logoutUser = asyncHandler(async(req, res) => {
     .json(new ApiResponse(200, {}, "User logged out successfully"))
 })
 
+const refreshAccessToken  = asyncHandler( async (req, res)=> {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if (!incomingRefreshToken) {
+        throw new ApiError(401, "Unauthorized request")
+    }
+
+    try {
+        const decodedToken = jwt.verify(
+          incomingRefreshToken,
+          process.env.REFRESH_TOKEN_SECRET
+        )
+
+        // you will get _id via decoded token (look at generateRefreshToken() in user.model.js)
+
+        const user = await User.findById(decodedToken?._id)
+
+        if (!user) {
+            throw new ApiError(401, "Invalid refresh token")
+        }
+
+        if (incomingRefreshToken !== user?.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used")
+        }
+
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+
+        const {newAccessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id)
+
+        return res
+          .status(200)
+          .cookie("accessToken", newAccessToken)
+          .cookie("refreshToken", newRefreshToken)
+          .json(
+            new ApiResponse(
+              200,
+              {
+                  newAccessToken,
+                  newRefreshToken
+              }
+            )
+          )
+    } catch (error) {
+        throw new ApiError(400, error?.message || "Invalid refresh token")
+    }
+
+})
+
 export {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshAccessToken
 }
