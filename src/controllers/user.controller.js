@@ -6,18 +6,18 @@ import {ApiResponse} from "../utils/ApiResponse.utils.js"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
-        await User.findById(userId)
+        const user = await User.findById(userId)
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
 
         user.refreshToken = refreshToken;
-        user.accessToken = accessToken;
+        // user.accessToken = accessToken;
 
         // user.save() is used for saving data.
         // while saving, the save() function takes all fields of a model as parameters
         // here we have only the values of accessToken and refreshToken
 
-        await user.save({ validateBeforeSve: false })
+        await user.save({ validateBeforeSave: false })
         return {accessToken, refreshToken}
 
     } catch (error) {
@@ -188,6 +188,7 @@ const loginUser = asyncHandler( async(req,res) => {
             },
             // we are sending access and refresh tokens in user because what if client is using an app...
             // ...not a browser. Then the cookies will not be saved, these values from user will be saved
+            "User logged in successfully"
         )
     )
 
