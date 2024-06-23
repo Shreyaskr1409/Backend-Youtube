@@ -157,10 +157,10 @@ const loginUser = asyncHandler( async(req,res) => {
     // dont use User to get data. it is an Mongoose object.. user is the one we made
     const isPasswordValid = await user.isPasswordCorrect(password)
     if (!isPasswordValid) {
-        throw new ApiError(404, "Invalid user credentials")
+        throw new ApiError(401, "Invalid user credentials")
     }
 
-    const { accessToken, refreshToken } = generateAccessAndRefreshTokens(user._id)
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id)
 
     // NOW!!! the user initially did not have a refreshToken or AccessToken when he first logged in
     // we can either: 1. send query to database to update the user's fields (easier and method)
