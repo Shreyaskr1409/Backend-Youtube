@@ -6,10 +6,9 @@ const connectDB = async () => {
         const connectionInstance = await mongoose.connect(`${process.env.MONGODB_URI}/${DB_NAME}`)
         // I wrote ${DB_NAME} in a new line which gave a new error
         // My files were getting saved in test folder instead of videotube folder
-        console.log(`\n MongoDB CONNECTED!!! Database hosted on
-            ${connectionInstance.connection.host}`)
+        console.log(`\n MongoDB CONNECTED!!! Database hosted on ${connectionInstance.connection.host}`)
     } catch (error) {
-        console.log("MONGODB connection FAILED ", error);
+        console.log("MONGODB connection FAILED!!!", error);
         process.exit(1)
     }
 }
