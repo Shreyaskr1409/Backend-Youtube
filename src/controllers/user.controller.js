@@ -4,6 +4,7 @@ import {User} from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.utils.js";
 import {ApiResponse} from "../utils/ApiResponse.utils.js"
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose"
 
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
@@ -397,6 +398,7 @@ const getUserChannelProfile = asyncHandler( async(req,res) => {
         {
             $match: {
                 username: username?.toLowerCase()
+                // match username: in database wither username taken from req.params
             }
         },
         {
@@ -406,7 +408,7 @@ const getUserChannelProfile = asyncHandler( async(req,res) => {
                 localField: "_id",
                 foreignField: "channel",
                 as: "subscribers"
-                // from subscriptions, using _id, under field "channel: ___", as subscribers
+                // from subscriptions, using user' _id, under field "channel: ___" in subscription, as subscribers
             }
         },
         {
@@ -458,6 +460,65 @@ const getUserChannelProfile = asyncHandler( async(req,res) => {
             new ApiResponse(200, channel[0], "User Channel fetched successfully")
             // we returned just 1st element of channel because front end guy needs just 1 element to fill up details in frontend
         )
+})
+
+const getUserWatchHistory = asyncHandler( async(req, res) => {
+    const user = await User.aggregate([
+        // find user
+        // get the watch history (collection of videos) from lookup
+        // from those videos, lookup user for it's name, channel and avatar (the way it is displayed in youtube watch history)
+        // now to make it easier for the frontend guy, instead of returning only the array of owners...
+        // ...we will also return first owner as an object normally as a new field
+        {
+            $match: {
+                // _id: req.user._id
+                // this will be wrong as _id here will be a string like ObjectId("bdsvbabjvkadsv")
+                // when you use mongoose with find by id, mongoose handles id and returns the user
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                },
+                                {
+                                    $addFields: {
+                                        owner: {
+                                            $first: "$owner"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res.status(200)
+        .json(
+            new ApiResponse(200, user[0].watchHistory, "Watch history fetched")
+        )
+    // aggregate() returns array. so user is an array.
+    // we get the first element of array to get 1st user object which is the only object in this case
 })
 
 export {
